@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>כיסוי זמני</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Secular+One&family=Assistant:wght@400;600;700&display=swap">
+<style>
+:root{color-scheme:light}
+body{margin:0}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+/* Layout: a duty board — one big "on duty now" card, then the rotation roster, then the log */
+:root{
+  --bg:#eef1f4; --surface:#ffffff; --ink:#18222e; --muted:#5d6b7a; --line:#d5dce4;
+  --accent:#1f5f8b; --accent-ink:#ffffff; --duty:#f2a72e; --duty-soft:#fdf1dc; --ok:#2e7d55;
+  --display:"Secular One","Assistant",system-ui,sans-serif;
+  --body:"Assistant",system-ui,"Segoe UI",Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10161d; --surface:#18212b; --ink:#e8eef4; --muted:#93a2b2; --line:#2a3644;
+  --accent:#5aa6d8; --accent-ink:#0d1620; --duty:#f2b347; --duty-soft:#2d2415; --ok:#5cc08b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10161d; --surface:#18212b; --ink:#e8eef4; --muted:#93a2b2; --line:#2a3644;
+  --accent:#5aa6d8; --accent-ink:#0d1620; --duty:#f2b347; --duty-soft:#2d2415; --ok:#5cc08b; color-scheme:dark}
+
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5}
+.wrap{max-width:720px;margin:0 auto;padding-block:24px 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:28px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--display);font-weight:400;font-size:2rem;margin:0;letter-spacing:.01em}
+.status{font-size:.85rem;color:var(--muted)}
+h2{font-family:var(--display);font-weight:400;font-size:1.2rem;margin:0}
+.sub{color:var(--muted);font-size:.9rem;margin:2px 0 0}
+
+/* on-duty card */
+.duty{background:var(--surface);border:2px solid var(--duty);border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:16px}
+.tag{align-self:flex-start;background:var(--duty);color:#1a1205;font-weight:700;font-size:.8rem;letter-spacing:.06em;padding:3px 10px;border-radius:99px}
+.who{font-family:var(--display);font-size:clamp(2.2rem,8vw,3.4rem);line-height:1.1;margin:0;text-wrap:balance;overflow-wrap:anywhere}
+.who.empty{color:var(--muted);font-size:1.4rem}
+.next{color:var(--muted)}
+.next b{color:var(--ink)}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:10px 16px;font-weight:600}
+button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-size:1.1rem;padding:14px 22px;flex:1 1 220px}
+button:disabled{opacity:.45;cursor:not-allowed}
+.toast{min-height:1.5em;color:var(--ok);font-weight:600}
+
+/* roster */
+.roster{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.row{display:grid;grid-template-columns:2.2rem 1fr auto auto auto;grid-template-areas:"num name count set del" ". boxes boxes boxes boxes";align-items:center;column-gap:10px;row-gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.row .num{grid-area:num}.row input{grid-area:name}.row .count{grid-area:count}.row .set{grid-area:set}.row .del{grid-area:del}
+.boxes{grid-area:boxes;display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding-bottom:2px}
+.box{width:2.4rem;height:2.4rem;padding:0;border:2px solid var(--line);border-radius:8px;background:var(--bg);color:transparent;font-weight:800;font-size:1.35rem;line-height:1;display:grid;place-items:center;cursor:pointer;transition:background .12s,border-color .12s,transform .12s}
+.box:hover:not(:disabled){border-color:var(--ok)}
+.box:active:not(:disabled){transform:scale(.92)}
+.box.on{background:var(--ok);border-color:var(--ok);color:#fff;box-shadow:inset 0 0 0 2px rgba(0,0,0,.12)}
+.box.on:not(.last){cursor:default}
+.box:disabled{cursor:not-allowed;opacity:.5}
+.chip{font-size:.78rem;font-weight:700;color:var(--ok);margin-inline-start:4px;white-space:nowrap}
+.count b{color:var(--ink);font-size:1.05rem}
+.row.current{background:var(--duty-soft);border-color:var(--duty)}
+.num{font-family:var(--display);color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
+.row.current .num{color:var(--ink)}
+.row input{font:inherit;min-width:0;width:100%;border:0;background:transparent;color:var(--ink);padding:8px 4px;border-radius:6px}
+.row input::placeholder{color:var(--muted);opacity:.7}
+.count{min-height:1.6em;display:flex;align-items:center;gap:4px;font-size:.85rem;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.icon{padding:6px 10px;font-size:.85rem;font-weight:600;color:var(--muted)}
+.del{min-width:2.4rem;color:var(--muted)}
+.del:hover:not(:disabled){color:#b3261e;border-color:#b3261e}
+.del.armed{color:#fff;background:#b3261e;border-color:#b3261e}
+.roster-foot{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+
+/* log */
+.log{list-style:none;padding:0;margin:12px 0 0;display:flex;flex-direction:column}
+.log li{display:flex;justify-content:space-between;gap:12px;padding:9px 2px;border-bottom:1px solid var(--line)}
+.log time{color:var(--muted);font-size:.88rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+.log .skip{color:var(--muted)}
+.emptylog{color:var(--muted);margin-top:10px}
+@media (prefers-reduced-motion:no-preference){.who{transition:opacity .2s}}
+@media (max-width:440px){.row{grid-template-columns:1.4rem 1fr auto auto;grid-template-areas:"num name set del" ". count count count" ". boxes boxes boxes";column-gap:6px;padding:6px}.icon{padding:6px 8px}.box{width:2.2rem;height:2.2rem}}
+</style>
+</head>
+<body>
+
+<div class="wrap" dir="rtl" lang="he">
+  <header>
+    <h1>כיסוי זמני</h1>
+    <span class="status" id="status">טוען…</span>
+  </header>
+
+  <section class="duty" aria-live="polite">
+    <span class="tag">התור עכשיו</span>
+    <p class="who empty" id="who">הוסיפו שמות ברשימה למטה כדי להתחיל</p>
+    <div class="next" id="next"></div>
+    <div class="actions">
+      <button class="primary" id="doneBtn" disabled>✓ ביצעתי כיסוי — העבר לבאה</button>
+      <button id="skipBtn" disabled>דלג בלי לסמן</button>
+      <button id="undoBtn" disabled>בטל פעולה אחרונה</button>
+    </div>
+    <div class="toast" id="toast"></div>
+  </section>
+
+  <section>
+    <h2>סדר התור</h2>
+    <p class="sub">כתבו שמות בכל משבצת. מי שעשתה כיסוי מסמנת ✓ במשבצת הפנויה ליד השם שלה, וכל כיסוי ממלא משבצת. לחיצה על הווי האחרון מבטלת אותו. כשהרשימה מסתיימת, מתחילים שוב מהשם הראשון. אפשר להוסיף משבצות ולמחוק אותן עם ✕.</p>
+    <div class="roster" id="roster"></div>
+    <div class="roster-foot">
+      <button id="addBtn">+ הוסף משבצת</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>היסטוריית כיסויים</h2>
+    <ul class="log" id="log"></ul>
+    <p class="emptylog" id="emptylog">עדיין לא סומנו כיסויים.</p>
+  </section>
+</div>
+
+<script>
+(function(){
+  const MIN_SLOTS = 8, LOG_MAX = 200;
+  let state = {names:Array(MIN_SLOTS).fill(""), checked:Array(MIN_SLOTS).fill(false), counts:Array(MIN_SLOTS).fill(0), current:0, round:1, log:[]};
+  let ref = null, saving = Promise.resolve(), readOnly = false;
+  const $ = id => document.getElementById(id);
+
+  const filled = () => state.names.map((n,i)=>({n:n.trim(),i})).filter(x=>x.n);
+  function nextIndex(from){
+    const L = state.names.length;
+    for(let k=1;k<=L;k++){const j=(from+k)%L; if(state.names[j].trim()) return j;}
+    return from;
+  }
+  // next filled name after `from` that hasn't ticked this round
+  function nextUnchecked(from){
+    const L = state.names.length;
+    for(let k=1;k<=L;k++){const j=(from+k)%L; if(state.names[j].trim() && !state.checked[j]) return j;}
+    return -1;
+  }
+  function normalize(s){
+    s = JSON.parse(JSON.stringify(s||{}));  // snapshots from the store are frozen; work on a copy
+    const names = Array.isArray(s.names)? s.names.map(x=>String(x||"")) : Array(MIN_SLOTS).fill("");
+    if(!names.length) names.push("");
+    const checked = names.map((_,i)=> Array.isArray(s.checked)? !!s.checked[i] : false);
+    let current = Number.isInteger(s.current)? s.current : 0;
+    if(current<0||current>=names.length) current=0;
+    const log = Array.isArray(s.log)? s.log : [];
+    let counts;
+    if(Array.isArray(s.counts)) counts = names.map((_,i)=> Math.max(0, Number(s.counts[i])||0));
+    else { const by={}; log.forEach(e=>{ if(e.type!=="skip") by[e.name]=(by[e.name]||0)+1; }); counts = names.map(n=>by[n.trim()]||0); }
+    return {names, checked, counts, current, round:Number.isInteger(s.round)? s.round:1, log};
+  }
+  function firstFilled(){ const f=filled(); return f.length? f[0].i : 0; }
+  function removeSlot(i){
+    if(readOnly || state.names.length<=1) return;
+    const name=state.names[i].trim();
+    const wasCurrent = i===state.current;
+    state.names.splice(i,1); state.checked.splice(i,1); state.counts.splice(i,1);
+    if(i<state.current) state.current--;
+    if(state.current>=state.names.length) state.current=0;
+    // undo snapshots point at old slot numbers, so they can't be restored after a delete
+    state.log.forEach(e=>{ delete e.prev; });
+    if(wasCurrent || state.checked[state.current] || !state.names[state.current]?.trim()){
+      const n = state.names[state.current]?.trim() && !state.checked[state.current] ? state.current
+              : nextUnchecked(state.current===0? state.names.length-1 : state.current-1);
+      state.current = n===-1? firstFilled() : n;
+    }
+    if(filled().length && filled().every(x=>state.checked[x.i])){ state.round++; state.checked=state.checked.map(()=>false); state.current=firstFilled(); }
+    save(); render();
+    toast(name? `${name} הוסרה מהרשימה` : "המשבצת נמחקה");
+  }
+  function fixCurrent(){
+    if(!state.names[state.current]?.trim()){
+      const f = filled(); state.current = f.length? (f.find(x=>x.i>state.current)||f[0]).i : 0;
+    }
+  }
+
+  function save(){
+    const snapshot = JSON.parse(JSON.stringify(state));
+    if(!ref){ try{localStorage.setItem("kisui",JSON.stringify(snapshot))}catch(e){} return; }
+    saving = saving.then(()=>ref.set(snapshot)).catch(e=>{
+      if(e && (e.code==="invalid_argument"||e.code==="permission-denied")){ readOnly=true; $("status").textContent="צפייה בלבד — אין הרשאת עריכה"; render(); }
+      else $("status").textContent="שמירה נכשלה, נסו שוב";
+    });
+  }
+
+  const fmt = ts => new Date(ts).toLocaleString("he-IL",{weekday:"short",day:"numeric",month:"numeric",hour:"2-digit",minute:"2-digit"});
+  let toastT;
+  function toast(t){ $("toast").textContent=t; clearTimeout(toastT); toastT=setTimeout(()=>$("toast").textContent="",3500); }
+
+  function render(){
+    const f = filled(), has = f.length>0;
+    const cur = state.names[state.current]?.trim();
+    const who = $("who");
+    if(has && cur){ who.textContent = cur; who.classList.remove("empty"); }
+    else { who.textContent = "הוסיפו שמות ברשימה למטה כדי להתחיל"; who.classList.add("empty"); }
+    let nx = nextUnchecked(state.current); if(nx===-1) nx = nextIndex(state.current);
+    const doneCount = f.filter(x=>state.checked[x.i]).length;
+    $("next").innerHTML = "";
+    if(has && f.length>1){ $("next").append("הבאה בתור: "); const b=document.createElement("b"); b.textContent=state.names[nx].trim(); $("next").append(b); }
+    if(has){ $("next").append(` · סבב ${state.round}: ${doneCount} מתוך ${f.length} סימנו ✓`); }
+    $("doneBtn").disabled = !has || readOnly;
+    $("skipBtn").disabled = f.length<2 || readOnly;
+    $("undoBtn").disabled = !state.log.length || readOnly;
+    $("addBtn").disabled = readOnly;
+
+    // roster — keep focused input intact
+    const roster = $("roster"), active = document.activeElement;
+    if(roster.children.length !== state.names.length){
+      roster.innerHTML="";
+      state.names.forEach((_,i)=>{
+        const row=document.createElement("div"); row.className="row";
+        row.innerHTML=`<span class="num">${i+1}</span><input id="name-${i}" maxlength="40" placeholder="שם ${i+1}" aria-label="שם במשבצת ${i+1}"><span class="count"></span><button class="icon set" type="button">קבע כתור</button><button class="icon del" type="button" aria-label="מחק משבצת ${i+1}" title="מחק משבצת">✕</button><div class="boxes" role="group" aria-label="כיסויים"></div>`;
+        row.querySelector(".boxes").addEventListener("click",ev=>{
+          const b=ev.target.closest(".box"); if(!b||b.disabled) return;
+          const inp=row.querySelector('input[id^="name-"]');
+          if(inp.value!==state.names[i]){ state.names[i]=inp.value; fixCurrent(); }
+          if(!state.names[i].trim()){ toast("כתבו קודם שם במשבצת הזאת"); inp.focus(); return; }
+          if(b.classList.contains("on")){ if(b.classList.contains("last")) unmark(i); }
+          else markDone(i);
+        });
+        const del=row.querySelector(".del"); let armT;
+        del.addEventListener("click",()=>{
+          // empty slot: delete at once; named slot: tap twice to confirm
+          if(!state.names[i].trim() || del.classList.contains("armed")){ clearTimeout(armT); removeSlot(i); return; }
+          del.classList.add("armed"); del.textContent="למחוק?";
+          armT=setTimeout(()=>{ del.classList.remove("armed"); del.textContent="✕"; },3000);
+        });
+        const inp=row.querySelector('input[id^="name-"]');
+        let t; inp.addEventListener("input",()=>{ state.names[i]=inp.value; clearTimeout(t); t=setTimeout(()=>{fixCurrent();save();render();},600); });
+        inp.addEventListener("blur",()=>{ clearTimeout(t); if(state.names[i]!==inp.value){state.names[i]=inp.value;} fixCurrent(); save(); render(); });
+        row.querySelector(".set").addEventListener("click",()=>{ if(!state.names[i].trim()) return; state.current=i; save(); render(); toast("התור עבר ל"+state.names[i].trim()); });
+        roster.append(row);
+      });
+    }
+    [...roster.children].forEach((row,i)=>{
+      const name=state.names[i].trim();
+      row.classList.toggle("current", !!name && i===state.current);
+      const inp=row.querySelector('input[id^="name-"]');
+      if(inp!==active && inp.value!==state.names[i]) inp.value=state.names[i];
+      inp.readOnly=readOnly;
+      const c=state.counts[i]||0;
+      const cnt=row.querySelector(".count"); cnt.innerHTML="";
+      if(name){
+        const b=document.createElement("b"); b.textContent=c; cnt.append(b, c===1? " כיסוי" : " כיסויים");
+        if(state.checked[i]){ const ch=document.createElement("span"); ch.className="chip"; ch.textContent="✓ בסבב הזה"; cnt.append(ch); }
+      }
+      // tick boxes: one filled ✓ per cover, then empty boxes to tick the next one
+      const boxes=row.querySelector(".boxes");
+      const total=Math.max(5, c+1);
+      if(boxes.childElementCount!==total || boxes.dataset.c!==String(c) || boxes.dataset.ro!==String(readOnly)){
+        boxes.innerHTML="";
+        for(let k=0;k<total;k++){
+          const bx=document.createElement("button"); bx.type="button"; bx.className="box"; bx.textContent="✓";
+          if(k<c){ bx.classList.add("on"); if(k===c-1){ bx.classList.add("last"); bx.setAttribute("aria-label",`בטל את הכיסוי ה-${c}`); bx.title="לחצו כדי לבטל את הווי האחרון"; } else bx.setAttribute("aria-disabled","true"); }
+          else { bx.setAttribute("aria-label","סמן כיסוי"); bx.title="סמנו ✓ על כיסוי"; }
+          if(readOnly) bx.disabled=true;
+          boxes.append(bx);
+        }
+        boxes.dataset.c=String(c); boxes.dataset.ro=String(readOnly);
+      }
+      const btn=row.querySelector(".set");
+      btn.disabled = readOnly || !name || i===state.current;
+      btn.textContent = (name && i===state.current)? "בתור עכשיו" : "קבע כתור";
+      row.querySelector(".del").disabled = readOnly || state.names.length<=1;
+    });
+
+    // log
+    const log=$("log"); log.innerHTML="";
+    state.log.slice().reverse().slice(0,50).forEach(e=>{
+      const li=document.createElement("li");
+      const s=document.createElement("span");
+      s.textContent = e.type==="skip"? `${e.name} — דילוג` : `${e.name} ביצעה כיסוי`;
+      if(e.type==="skip") s.className="skip";
+      const t=document.createElement("time"); t.textContent=fmt(e.at);
+      li.append(s,t); log.append(li);
+    });
+    $("emptylog").hidden = state.log.length>0;
+  }
+
+  const snap = () => ({current:state.current, checked:state.checked.slice(), counts:state.counts.slice(), round:state.round});
+  function pushLog(e){
+    state.log.push(e);
+    if(state.log.length>LOG_MAX) state.log=state.log.slice(-LOG_MAX);
+  }
+
+  // tick ✓ next to a name (or the big button for whoever is on duty)
+  function markDone(i){
+    const name=state.names[i]?.trim(); if(!name) return;
+    pushLog({name, type:"done", at:Date.now(), prev:snap()});
+    state.counts[i]=(state.counts[i]||0)+1;
+    let msg = `נרשם כיסוי של ${name} (${state.counts[i]} סה״כ)`;
+    if(state.checked[i]){ save(); render(); toast(msg); return; }  // extra cover in the same round: count only
+    state.checked[i]=true;
+    const n = nextUnchecked(i);
+    if(n===-1){
+      state.round++; state.checked=state.checked.map(()=>false);
+      state.current = firstFilled();
+      msg += ` · הרשימה הסתיימה, מתחילים סבב ${state.round} מההתחלה`;
+    } else if(i===state.current || state.checked[state.current]){
+      state.current = n;
+    }
+    msg += `. עכשיו התור של ${state.names[state.current].trim()}`;
+    save(); render(); toast(msg);
+  }
+  // remove a ✓ that was ticked by mistake
+  function unmark(i){
+    const name=state.names[i]?.trim(); if(!name) return;
+    if(!(state.counts[i]>0)) return;
+    state.counts[i]--;
+    state.checked[i]=false;
+    for(let k=state.log.length-1;k>=0;k--){ if(state.log[k].type==="done"&&state.log[k].name===name){ state.log.splice(k,1); break; } }
+    save(); render(); toast(`הסימון של ${name} הוסר`);
+  }
+  function skip(){
+    const name=state.names[state.current]?.trim(); if(!name) return;
+    const n = nextUnchecked(state.current); if(n===-1) return;
+    pushLog({name, type:"skip", at:Date.now(), prev:snap()});
+    state.current = n;
+    save(); render(); toast(`דילגנו על ${name}. עכשיו התור של ${state.names[n].trim()}`);
+  }
+  $("doneBtn").addEventListener("click",()=>markDone(state.current));
+  $("skipBtn").addEventListener("click",skip);
+  $("undoBtn").addEventListener("click",()=>{
+    const e=state.log.pop(); if(!e) return;
+    const p=e.prev;
+    if(p){
+      if(Number.isInteger(p.current) && p.current<state.names.length) state.current=p.current;
+      if(Array.isArray(p.checked)) state.checked=state.names.map((_,i)=>!!p.checked[i]);
+      if(Number.isInteger(p.round)) state.round=p.round;
+      if(Array.isArray(p.counts)) state.counts=state.names.map((_,i)=>Number(p.counts[i])||0);
+    } else if(e.type==="done"){
+      const j=state.names.findIndex(n=>n.trim()===e.name);
+      if(j>-1 && state.counts[j]>0) state.counts[j]--;
+    }
+    save(); render(); toast("הפעולה האחרונה בוטלה");
+  });
+  $("addBtn").addEventListener("click",()=>{ state.names.push(""); state.checked.push(false); state.counts.push(0); save(); render(); const i=state.names.length-1; $("name-"+i)?.focus(); });
+
+  // local fallback first so the page works instantly
+  try{ const s=localStorage.getItem("kisui"); if(s) state=normalize(JSON.parse(s)); }catch(e){}
+  render();
+  $("status").textContent="שמור במכשיר זה בלבד";
+
+  // connection point for the shared store (Firebase, set up in the module script below)
+  window.kisuiAttach = function(r){
+    ref = r;
+    $("status").textContent = "משותף ומסונכרן לכולן";
+    r.onSnapshot(snap=>{
+      if(snap.exists){ state=normalize(snap.data()); }
+      render();
+    }, err=>{
+      if(err && err.code==="permission-denied"){ $("status").textContent="אין הרשאה למסד הנתונים — בדקו את כללי האבטחה ב-Firebase"; }
+      else $("status").textContent="החיבור נותק — רעננו את העמוד";
+    });
+  };
+})();
+</script>
+
+<script type="module">
+/* ============================================================
+   הגדרות Firebase — הדביקו כאן את הערכים מהקונסולה של Firebase
+   (Project settings ← Your apps ← firebaseConfig)
+   ============================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyCKEyoqkUVwxBCzbmOKJ6N9SdumWhFFsYY",
+  authDomain: "project-7398325027826629826.firebaseapp.com",
+  projectId: "project-7398325027826629826",
+  storageBucket: "project-7398325027826629826.firebasestorage.app",
+  messagingSenderId: "207901495805",
+  appId: "1:207901495805:web:b599df68d7de5b37f44994",
+  measurementId: "G-M1S47YEBNK"
+};
+/* ============================================================ */
+
+const statusEl = document.getElementById("status");
+if (!firebaseConfig.projectId || firebaseConfig.projectId === "PASTE_HERE") {
+  statusEl.textContent = "Firebase לא הוגדר — נשמר במכשיר זה בלבד";
+} else {
+  try {
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+    const { getFirestore, doc, setDoc, onSnapshot } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+    const db = getFirestore(initializeApp(firebaseConfig));
+    const docRef = doc(db, "rotation", "state");
+    window.kisuiAttach({
+      set: data => setDoc(docRef, data),
+      onSnapshot: (next, error) => onSnapshot(docRef,
+        s => next({ exists: s.exists(), data: () => s.data() }),
+        error)
+    });
+  } catch (e) {
+    console.error(e);
+    statusEl.textContent = "לא הצלחנו להתחבר ל-Firebase — נשמר במכשיר זה בלבד";
+  }
+}
+</script>
+
+</body>
+</html>
